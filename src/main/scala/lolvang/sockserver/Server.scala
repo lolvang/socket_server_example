@@ -3,7 +3,7 @@ package lolvang.sockserver
 import java.net.ServerSocket
 import java.net.Socket
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 import lolvang.sockserver.util.TimeAccumulator
 
@@ -22,17 +22,19 @@ class Server(val port: Int, storage:Storage, max_key:Int, max_data:Int) extends 
   var stopped = false
   var serverSocket:ServerSocket = new ServerSocket(port)
 
+  val nr_connections:AtomicInteger = new AtomicInteger(0)
 
   // timers called from worker will complely break for conccurent connections
   // but for timing sequences of comands from a single connection they work fine
   // should be removed or rewritten for a real implemntation
-  val thread_spawn_timer = new TimeAccumulator
-  val cmd_handle_timer = new TimeAccumulator
-  val data_handle_timer = new TimeAccumulator
-  val exec_timer = new TimeAccumulator
-  val sock_read_timer = new TimeAccumulator
+  val thread_spawn_timer      = new TimeAccumulator
+  val cmd_time:AtomicLong     = new AtomicLong(0)
+  val data_time:AtomicLong    = new AtomicLong(0)
+  val exec_time:AtomicLong    = new AtomicLong(0)
 
-  val nr_connections:AtomicInteger = new AtomicInteger(0)
+
+
+
 
 
   override def run():Unit = {

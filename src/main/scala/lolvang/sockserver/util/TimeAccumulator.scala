@@ -1,7 +1,7 @@
 package lolvang.sockserver.util
 
 /**
-  * Created by olvang on 2017-05-08.
+  * Simple stopwatch class
   */
 class TimeAccumulator {
   private var acc:Long = _

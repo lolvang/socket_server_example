@@ -94,6 +94,7 @@ def test(nr,key_size,val_size,do_get, do_del):
             delete_key(sock,key)
             if count % 10000 == 0:
                 print "del "+ str(count)
+    sock.close()
     end = time.time()
     print "done in %s" % (end-start)
 

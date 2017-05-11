@@ -3,6 +3,8 @@ package lolvang.sockserver
 import java.io.{IOException, InputStream, OutputStream}
 import java.net.Socket
 
+import lolvang.sockserver.util.TimeAccumulator
+
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
@@ -12,16 +14,20 @@ class Worker(
   val in:InputStream    = socket.getInputStream
   val out:OutputStream  = socket.getOutputStream
 
+  val cmd_timer = new TimeAccumulator
+  val data_timer = new TimeAccumulator
+  val exec_timer = new TimeAccumulator
+
 
   override def run(): Unit = {
     println("Client connected")
     try {
-      val bytes:Array[Byte] = new Array[Byte](8192)
-      var read = 0
       do{
+        reset_timers()
         val (cmd, param, data) = read_request
         execute(cmd,param,data)
-      } while(read != -1 && !socket.isClosed)
+        store_timedata()
+      } while(!socket.isClosed)
     } catch {
       case e: IOException =>
         e.printStackTrace()
@@ -30,21 +36,35 @@ class Worker(
     println("Client disconnected")
   }
 
+  def reset_timers():Unit ={
+    cmd_timer.reset()
+    data_timer.reset()
+    exec_timer.reset()
+  }
+
+  def store_timedata():Unit ={
+    server.cmd_time.addAndGet(cmd_timer.get)
+    server.data_time.addAndGet(data_timer.get)
+    server.exec_time.addAndGet(exec_timer.get)
+  }
+
   def mk_string(a:Array[Byte]):String = a.map(_.toChar).mkString
   def mk_string(a:ArrayBuffer[Byte]):String = a.map(_.toChar).mkString
 
   def read_request:(String,String,Array[Byte])={
-    server.sock_read_timer.start()
     val bytes:Array[Byte] = new Array[Byte](8192)
     def read_data(nr:Int):ArrayBuffer[Byte] = {
+      data_timer.start()
       var dbuf = ArrayBuffer[Byte]()
       var read = 0
       while(nr > dbuf.length && read != -1 && !socket.isClosed){
         read = in.read(bytes)
         dbuf ++= bytes.slice(0,read)
       }
+      data_timer.stop()
       dbuf
     }
+    cmd_timer.start()
     var buf = ArrayBuffer[Byte]()
     var read = 0
     var done = false
@@ -64,27 +84,23 @@ class Worker(
       // the client should be able to recover from this if it send
       // trivial commands until all the leftover data has been consumed
       // but it is proably easier and safer to just reconnect
-      server.sock_read_timer.stop()
-      return ("wrong_number_of_parameters","x",Array[Byte]())
+      return ("wrong_number_of_parameters","",Array[Byte]())
     }
+    cmd_timer.stop()
     val size = Try(cmd(2).toInt)
     if(size.isFailure){
       // as above leaves data on socket buffers
-      server.sock_read_timer.stop()
-      ("non_integer_size_parameter","x",Array[Byte]())
+      ("non_integer_size_parameter","",Array[Byte]())
     }else if(cmd(1).length > max_key){
       // as above leaves data on socket buffers
-      server.sock_read_timer.stop()
-      ("key_to_large", "x", Array[Byte]())
+      ("key_to_large", "", Array[Byte]())
     } else if(size.get > max_data){
       // as above leaves data on socket buffers
-      server.sock_read_timer.stop()
-      ("value_to_large", "x", Array[Byte]())
+      ("value_to_large", "", Array[Byte]())
     } else {
       if(size.get - data.length > 0){
         data ++= read_data(size.get - data.length)
       }
-      server.sock_read_timer.stop()
       (cmd(0),cmd(1),data.toArray)
     }
   }
@@ -103,7 +119,7 @@ class Worker(
   }
 
   def execute(cmd:String,param:String,data:Array[Byte]):Unit ={
-    server.exec_timer.start()
+    exec_timer.start()
     cmd match {
       case "set" =>
         val set = storage.set(param, data)
@@ -113,7 +129,7 @@ class Worker(
         if(get.isEmpty) {
           reply("key not found\t0\n")
         }else {
-          val d = get.getOrElse(Array[Byte]())
+          val d = get.get
           reply("ok\t%s\n".format(d.length), d)
         }
       case "delete" =>
@@ -138,10 +154,8 @@ class Worker(
       case _ =>
         reply("unknown_command\t0\n")
     }
-    server.exec_timer.stop()
+    exec_timer.stop()
   }
-
-
 
   def stats(cmd:String):Long ={
     cmd match{

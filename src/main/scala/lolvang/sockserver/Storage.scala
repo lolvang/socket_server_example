@@ -29,11 +29,10 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
   new File(filename).createNewFile() //create db file if it doesnt exist
   val timer = new TimeAccumulator
 
-
   var map:ConcurrentMap[ String, Array[Byte] ] = new ConcurrentHashMap[String,Array[Byte]]()
-  var current_size = load()
+  var current_size:Int = load()
 
-  def to_str(in:Array[Byte]) = in.map(_.toChar).mkString("")
+  def to_str(in:Array[Byte]):String = in.map(_.toChar).mkString("")
 
   def set(key:String, value:Array[Byte]):String ={
     timer.start()
@@ -61,7 +60,7 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
   def get(key:String):Option[Array[Byte]] ={
     timer.start()
     val res = Try(Option(map.get(key)))
-    timer.start()
+    timer.stop()
     res.getOrElse(None)
   }
 
@@ -90,7 +89,6 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
     timer.start()
     val r = Try(new File(filename).length())
     timer.stop()
-
     current_size
   }
 
@@ -98,9 +96,8 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
     val file = new File(filename)
     val fout = new FileOutputStream(file,false)
     val data = map.asScala.map({t=>
-        val k = t._1
-        val v = t._2
-      (k.length, v.length,k,v)
+      val k = t._1
+      val v = t._2
       val buf = ByteBuffer.allocate(8 + k.length + v.length)
         .putInt(k.length)
         .putInt(v.length)
@@ -114,7 +111,7 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
     println("nr elements " + data.size)
     data.foreach({ b=>
       val arr = b.array()
-      fout.write(arr,0,arr.length)
+      fout.write(arr)
     })
     fout.flush()
     fout.close()

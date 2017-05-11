@@ -27,6 +27,12 @@ class ServerITest extends FunSuite {
 
   def stop(): Unit = {
     while (server.stop().isFailure) {}
+    println("Statistics:")
+    println("storage.timer "              + storage.timer.get + " ms")
+    println("server.thread_spawn_timer "  + server.thread_spawn_timer.get + " ms")
+    println("server.cmd_time "            + server.cmd_time.get + " ms")
+    println("server.data_time "           + server.data_time.get + " ms")
+    println("server.exec_time "           + server.exec_time.get + " ms")
   }
 
   def to_str(in: Array[Byte]):String = in.map(_.toChar).mkString("")
@@ -107,6 +113,7 @@ class ServerITest extends FunSuite {
     val client = new Client("localhost", 3434)
     val set = client.set(rnd_str(32),rnd_str(1000001).getBytes)
     assert(!set)
+    client.close()
     stop()
   }
 
@@ -115,6 +122,7 @@ class ServerITest extends FunSuite {
     val client = new Client("localhost", 3434)
     val set = client.set(rnd_str(101), rnd_str(100).getBytes)
     assert(!set)
+    client.close()
     stop()
   }
 
@@ -123,6 +131,7 @@ class ServerITest extends FunSuite {
     val clients = Range(0,6).map(_=>new Client("localhost", 3434))
     val num_con = clients.map(c=>Try(c.num_connections()))
     assert(num_con.count(_.isSuccess) == 5)
+    clients.foreach(_.close())
     stop()
   }
 
@@ -135,6 +144,7 @@ class ServerITest extends FunSuite {
     // which and should fail on the 25th
     val ins = Range(0,25).map({_=>client.set(rnd_str(96),data)})
     assert(ins.count({b=>b}) == 24)
+    client.close()
     stop()
   }
 
