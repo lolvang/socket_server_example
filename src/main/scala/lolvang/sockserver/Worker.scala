@@ -91,17 +91,19 @@ class Worker(
     if(size.isFailure){
       // as above leaves data on socket buffers
       ("non_integer_size_parameter","",Array[Byte]())
-    }else if(cmd(1).length > max_key){
-      // as above leaves data on socket buffers
-      ("key_to_large", "", Array[Byte]())
-    } else if(size.get > max_data){
-      // as above leaves data on socket buffers
-      ("value_to_large", "", Array[Byte]())
-    } else {
+    }else{
       if(size.get - data.length > 0){
         data ++= read_data(size.get - data.length)
       }
-      (cmd(0),cmd(1),data.toArray)
+      if(cmd(1).length > max_key){
+        // as above leaves data on socket buffers
+        ("key_to_large", "", Array[Byte]())
+      } else if(size.get > max_data){
+        // as above leaves data on socket buffers
+        ("value_to_large", "", Array[Byte]())
+      } else {
+        (cmd(0),cmd(1),data.toArray)
+      }
     }
   }
 
