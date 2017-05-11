@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>leol</groupId>
+    <groupId>lolvang</groupId>
     <artifactId>sockserver</artifactId>
     <packaging>jar</packaging>
     <version>1.0</version>
@@ -13,7 +13,7 @@
 
     <properties>
         <scala.version>2.12.0</scala.version>
-        <main.class>leol.sockserver.Main</main.class>
+        <main.class>lolvang.sockserver.Main</main.class>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -173,7 +173,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <groups>leol.sockserver.IntegrationTest</groups>
+                    <groups>lolvang.sockserver.IntegrationTest</groups>
                 </configuration>
                 <executions>
                     <execution>
