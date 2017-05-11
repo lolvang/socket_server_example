@@ -101,7 +101,7 @@ def test(nr,key_size,val_size,do_get, do_del):
 
 
 if __name__ == "__main__":
-    test(400000,32,32, True, False)
+    test(340000,32,32, True, True)
     
     
     
