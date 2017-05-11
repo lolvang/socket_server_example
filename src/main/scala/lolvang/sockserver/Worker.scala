@@ -96,10 +96,8 @@ class Worker(
         data ++= read_data(size.get - data.length)
       }
       if(cmd(1).length > max_key){
-        // as above leaves data on socket buffers
         ("key_to_large", "", Array[Byte]())
       } else if(size.get > max_data){
-        // as above leaves data on socket buffers
         ("value_to_large", "", Array[Byte]())
       } else {
         (cmd(0),cmd(1),data.toArray)
