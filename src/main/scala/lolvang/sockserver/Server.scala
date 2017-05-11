@@ -1,9 +1,5 @@
 package lolvang.sockserver
 
-/**
-  * Created by olvang on 2017-05-08.
-  */
-
 import java.net.ServerSocket
 import java.net.Socket
 import java.io.IOException
@@ -13,7 +9,15 @@ import lolvang.sockserver.util.TimeAccumulator
 
 import scala.util.Try
 
-
+/**
+  * Server instance, receives incoming connections and spawns Worker threads to handle them
+  * Has a fixed max of five concurrent connections. If the server should be used in a setting
+  * where many concurrent connections are expected it might be better to have a worker pool
+  * that handles input on a given socket and switches to the next in queue as soon as it
+  * would wait for further input from the client. This setup would be significantly more
+  * complex to implement. If we instead have few but work intensive connections the current
+  * setup is probably more efficient.
+  */
 class Server(val port: Int, storage:Storage, max_key:Int, max_data:Int) extends Runnable {
   var stopped = false
   var serverSocket:ServerSocket = new ServerSocket(port)
@@ -42,6 +46,7 @@ class Server(val port: Int, storage:Storage, max_key:Int, max_data:Int) extends 
           //depending on the usepatterns we might want to replace this with a thread pool
           new Thread(new Worker(clientSocket, this, storage,max_key,max_data)).start()
         } else{
+          println("Refused connection, to many clients")
           nr_connections.decrementAndGet()
           clientSocket.close()
         }

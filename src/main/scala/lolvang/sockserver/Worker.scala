@@ -9,15 +9,6 @@ import scala.util.Try
 class Worker(
   val socket:Socket, server:Server, storage:Storage, max_key:Int, max_data:Int
 ) extends Runnable {
-  var cmd:String  = "stats"
-  var param:String = "bd_size"
-  var size:Int = 0
-
-  private val NL_BYTE = '\n'.toByte
-  private val CMD_LIST = Array("set","get","delete","stats")
-
-
-
   val in:InputStream    = socket.getInputStream
   val out:OutputStream  = socket.getOutputStream
 
@@ -82,9 +73,11 @@ class Worker(
       server.sock_read_timer.stop()
       ("non_integer_size_parameter","x",Array[Byte]())
     }else if(cmd(1).length > max_key){
+      // as above leaves data on socket buffers
       server.sock_read_timer.stop()
       ("key_to_large", "x", Array[Byte]())
     } else if(size.get > max_data){
+      // as above leaves data on socket buffers
       server.sock_read_timer.stop()
       ("value_to_large", "x", Array[Byte]())
     } else {
@@ -113,10 +106,10 @@ class Worker(
     server.exec_timer.start()
     cmd match {
       case "set" =>
-        val set = storage.set(param.getBytes, data)
+        val set = storage.set(param, data)
         reply("%s\t0\n".format(set.replace("\t", " ").toLowerCase))
       case "get" =>
-        val get = storage.get(param.getBytes)
+        val get = storage.get(param)
         if(get.isEmpty) {
           reply("key not found\t0\n")
         }else {
@@ -124,7 +117,7 @@ class Worker(
           reply("ok\t%s\n".format(d.length), d)
         }
       case "delete" =>
-        val del = storage.del(param.getBytes)
+        val del = storage.del(param)
         reply("%s\t0\n".format(del.replace("\t", " ").toLowerCase))
       case "stats" =>
         val nr = stats(param)

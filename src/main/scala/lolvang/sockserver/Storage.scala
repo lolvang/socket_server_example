@@ -10,7 +10,20 @@ import collection.JavaConverters._
 import scala.util.Try
 
 /**
-  * Created by olvang on 2017-05-08.
+  * Class for loading and storing values. The values can be persisted to file by calling store()
+  * but they are not automatically persisted at insertion. On startup the Storage class tries to
+  * load previously persisted data from the filename given using the load() method.
+  * Both of these methods are not error checked as we have no code to recover from failure
+  * so it is better to let the program crash to avoid further harm.
+  *
+  * How this would change in a production setup depends on the intended use case.
+  * If data integrity is important we would replace the concurrent map with a database or a memory
+  * mapped version of ConcurrentMap like ChronicleMap, but this would force us to lift the
+  * strict storage space constraints.
+  *
+  * If the data was not critical but we still want to be able to dump the data, I would suggest
+  * adding client commands to persist and persist to a rolling file schema so that we do not
+  * lose data if persistence fails. And add error handling to the store method.
   */
 class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_size:Int) {
   new File(filename).createNewFile() //create db file if it doesnt exist
@@ -22,7 +35,7 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
 
   def to_str(in:Array[Byte]) = in.map(_.toChar).mkString("")
 
-  def set(key:Array[Byte], value:Array[Byte]):String ={
+  def set(key:String, value:Array[Byte]):String ={
     timer.start()
     var ret = "ok"
     val new_size = current_size + 8 + key.length + value.length
@@ -33,7 +46,7 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
     } else if(new_size > max_file_size){
       ret = "data_wont_fit_in_storage"
     } else {
-      val t = Try({map.put(to_str(key),value)})
+      val t = Try({map.put(key,value)})
       ret = if( t.isSuccess){
         current_size = new_size
         "ok"
@@ -45,17 +58,17 @@ class Storage(filename:String, max_key_size:Int, max_value_size:Int, max_file_si
     ret
   }
 
-  def get(key:Array[Byte]):Option[Array[Byte]] ={
+  def get(key:String):Option[Array[Byte]] ={
     timer.start()
-    val res = Try(Option(map.get(to_str(key))))
+    val res = Try(Option(map.get(key)))
     timer.start()
     res.getOrElse(None)
   }
 
-  def del(key:Array[Byte]):String  ={
+  def del(key:String):String  ={
     timer.start()
     val res = Try({
-      val value = map.remove( to_str(key) )
+      val value = map.remove( key )
       current_size -= ( 8 + key.length + value.length )
     })
     assert(current_size>=0)

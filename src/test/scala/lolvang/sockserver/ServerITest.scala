@@ -7,7 +7,7 @@ import org.junit.runner.RunWith
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 
-import scala.util.Random
+import scala.util.{Random, Try}
 
 /**
   * Created by olvang on 2017-05-08.
@@ -19,6 +19,7 @@ class ServerITest extends FunSuite {
   var server: Server = _
 
   def init(): Unit = {
+    new File("test.storage.db").delete()
     storage = new Storage("test.storage.db", 100, 1000000, 25000000)
     server = new Server(3434, storage,100,1000000)
     new Thread(server).start()
@@ -26,7 +27,6 @@ class ServerITest extends FunSuite {
 
   def stop(): Unit = {
     while (server.stop().isFailure) {}
-    storage.store()
   }
 
   def to_str(in: Array[Byte]):String = in.map(_.toChar).mkString("")
@@ -34,7 +34,7 @@ class ServerITest extends FunSuite {
   def rnd_str(len:Int):String = Random.alphanumeric.take(len).mkString
 
 
-  test("stats_test") {
+  test("stats") {
     init()
     val clients = Range(0, 5).map({ n => new Client("localhost", 3434) })
     val nr_con = clients.map({ c => c.num_connections() })
@@ -45,11 +45,12 @@ class ServerITest extends FunSuite {
       assert(n.isDefined)
       assert(n.get == 5)
     })
+    clients.foreach(_.close())
     stop()
   }
 
 
-  test("set_get_remove_test") {
+  test("set_get_remove") {
     init()
     val elems = 10
     val key_size = 32
@@ -79,10 +80,11 @@ class ServerITest extends FunSuite {
     assert(sets.forall({ b => b })) // all sets succeeded
     assert(input.zip(gets).forall({ t => t._1._2 == t._2 })) // set(a,b)->get(a)->b
     assert(rems.forall({ b => b })) // all deletes succeeded
+    client.close()
     stop()
   }
 
-  test("set_large_test") {
+  test("set_get_delete_large_entry") {
     init()
     val key = rnd_str(18)
     val elem = rnd_str(1000000)
@@ -96,11 +98,43 @@ class ServerITest extends FunSuite {
     assert(suc)
     assert(rem)
     assert(to_str(get.get) == elem)
+    client.close()
     stop()
   }
 
   test("too_large_data"){
     init()
+    val client = new Client("localhost", 3434)
+    val set = client.set(rnd_str(32),rnd_str(1000001).getBytes)
+    assert(!set)
+    stop()
+  }
+
+  test("too_long_key"){
+    init()
+    val client = new Client("localhost", 3434)
+    val set = client.set(rnd_str(101), rnd_str(100).getBytes)
+    assert(!set)
+    stop()
+  }
+
+  test("too_many_connections"){
+    init()
+    val clients = Range(0,6).map(_=>new Client("localhost", 3434))
+    val num_con = clients.map(c=>Try(c.num_connections()))
+    assert(num_con.count(_.isSuccess) == 5)
+    stop()
+  }
+
+  test("wont_fit_in_storage"){
+    init()
+    val data = rnd_str(999997).getBytes
+    val client = new Client("localhost", 3434)
+    //size per element in storage is 8 + key.length + data.length bytes
+    //so with key.length = 96 and data.length = 999997 we store 1000001 bytes per entry
+    // which and should fail on the 25th
+    val ins = Range(0,25).map({_=>client.set(rnd_str(96),data)})
+    assert(ins.count({b=>b}) == 24)
     stop()
   }
 

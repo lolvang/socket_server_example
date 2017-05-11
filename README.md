@@ -1,5 +1,5 @@
 # socket_server_example #
-This is a simple tcp based cache implementation. It persists the cache to disk on exit but all new data will be lost on crrash. Previously stored data is loaded on starup. 
+This is a simple tcp based cache implementation. It persists the cache to disk on exit but all new data will be lost on crash. Previously stored data is loaded on startup. 
 
 An example client that illustrates how to communicate with the server can be found in `client.py` or in `/src/test/scala/lolvang/sockserver/Client.scala` 
 
